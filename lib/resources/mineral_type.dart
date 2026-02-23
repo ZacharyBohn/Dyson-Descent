@@ -1,0 +1,1 @@
+enum MineralType { common, rare }

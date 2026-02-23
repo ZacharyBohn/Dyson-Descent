@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -42,6 +45,12 @@ class _GameShellState extends State<GameShell>
   Duration _lastTime = Duration.zero;
   final FocusNode _focusNode = FocusNode();
 
+  // Touch input state
+  bool   _isTouchThrusting = false;
+  bool   _touchMoved       = false;
+  double _touchLastX       = 0;
+  Timer? _holdTimer;
+
   @override
   void initState() {
     super.initState();
@@ -67,10 +76,71 @@ class _GameShellState extends State<GameShell>
 
   @override
   void dispose() {
+    _holdTimer?.cancel();
     _ticker.dispose();
     _focusNode.dispose();
     _game.shutdown();
     super.dispose();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Touch input — raw pointer handlers (touch only, ignores mouse/stylus)
+  // ---------------------------------------------------------------------------
+
+  void _onPointerDown(PointerDownEvent event) {
+    if (event.kind != PointerDeviceKind.touch) return;
+    _touchMoved = false;
+    _touchLastX = event.localPosition.dx;
+    _holdTimer = Timer(const Duration(milliseconds: 200), () {
+      _isTouchThrusting = true;
+      _inputManager.onKeyDown(GameKey.thrustForward);
+    });
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    if (event.kind != PointerDeviceKind.touch) return;
+    final dx = event.localPosition.dx - _touchLastX;
+    _touchLastX = event.localPosition.dx;
+    if (dx.abs() > 1) {
+      _touchMoved = true;
+      if (dx > 0) {
+        _inputManager.onKeyDown(GameKey.rotateRight);
+        _inputManager.onKeyUp(GameKey.rotateLeft);
+      } else {
+        _inputManager.onKeyDown(GameKey.rotateLeft);
+        _inputManager.onKeyUp(GameKey.rotateRight);
+      }
+    }
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    if (event.kind != PointerDeviceKind.touch) return;
+    _holdTimer?.cancel();
+    _holdTimer = null;
+    final wasThrusting = _isTouchThrusting;
+    if (_isTouchThrusting) {
+      _inputManager.onKeyUp(GameKey.thrustForward);
+      _isTouchThrusting = false;
+    }
+    if (!_touchMoved && !wasThrusting) {
+      _inputManager.onTouchTap();
+    }
+    _inputManager.onKeyUp(GameKey.rotateLeft);
+    _inputManager.onKeyUp(GameKey.rotateRight);
+    _touchMoved = false;
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    if (event.kind != PointerDeviceKind.touch) return;
+    _holdTimer?.cancel();
+    _holdTimer = null;
+    if (_isTouchThrusting) {
+      _inputManager.onKeyUp(GameKey.thrustForward);
+      _isTouchThrusting = false;
+    }
+    _inputManager.onKeyUp(GameKey.rotateLeft);
+    _inputManager.onKeyUp(GameKey.rotateRight);
+    _touchMoved = false;
   }
 
   GameKey? _mapKey(LogicalKeyboardKey key) {
@@ -116,12 +186,18 @@ class _GameShellState extends State<GameShell>
         focusNode: _focusNode,
         autofocus: true,
         onKeyEvent: _handleKeyEvent,
-        child: GestureDetector(
-          onTapUp: (details) {
-            _inputManager.onMouseClick(details.localPosition);
-          },
-          child: SizedBox.expand(
-            child: CustomPaint(painter: _GamePainter(_game, _renderer)),
+        child: Listener(
+          onPointerDown:   _onPointerDown,
+          onPointerMove:   _onPointerMove,
+          onPointerUp:     _onPointerUp,
+          onPointerCancel: _onPointerCancel,
+          child: GestureDetector(
+            onTapUp: (details) {
+              _inputManager.onMouseClick(details.localPosition);
+            },
+            child: SizedBox.expand(
+              child: CustomPaint(painter: _GamePainter(_game, _renderer)),
+            ),
           ),
         ),
       ),

@@ -23,7 +23,8 @@ class PlayerController {
     if (input.isKeyHeld(GameKey.thrustBackward)) {
       controlledShip.thrustBackward(deltaTime);
     }
-    if (input.isKeyHeld(GameKey.fire)) {
+    // isKeyHeld: continuous fire while Space is held; isKeyPressed: single touch tap.
+    if (input.isKeyHeld(GameKey.fire) || input.isKeyPressed(GameKey.fire)) {
       return controlledShip.weaponSystem.fire(
         controlledShip.position,
         controlledShip.rotation,

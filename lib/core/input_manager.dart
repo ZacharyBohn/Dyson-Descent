@@ -8,6 +8,10 @@ class InputManager {
   bool _mouseClickedThisFrame = false;
   Offset? _mouseClickPosition;
 
+  /// Set by the active scene each frame: true when a tap should trigger
+  /// [GameKey.interact] instead of [GameKey.fire] (e.g. near hub or warp gate).
+  bool interactionAvailable = false;
+
   void onKeyDown(GameKey key) {
     _pressedThisFrame.add(key);
     _heldKeys.add(key);
@@ -20,6 +24,14 @@ class InputManager {
   void onMouseClick(Offset position) {
     _mouseClickedThisFrame = true;
     _mouseClickPosition = position;
+  }
+
+  /// Called by the touch layer on a short tap (no drag, before hold threshold).
+  /// Emits [GameKey.interact] when [interactionAvailable], otherwise [GameKey.fire].
+  void onTouchTap() {
+    _pressedThisFrame.add(
+      interactionAvailable ? GameKey.interact : GameKey.fire,
+    );
   }
 
   bool isKeyPressed(GameKey key) => _pressedThisFrame.contains(key);

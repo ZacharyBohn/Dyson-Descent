@@ -117,6 +117,15 @@ class OverworldScene extends Scene {
       }
     }
 
+    // Tell InputManager whether a tap should trigger interact (near hub/gate)
+    // rather than fire. Hub-open state is excluded so tap routes to panel buttons.
+    inputManager.interactionAvailable = !_hubPanel.isOpen && (
+      Vector2.distance(_ship.position, _hubPos) < HubPanel.dockRadius ||
+      _worldMap.gates.any((g) =>
+          g.isActive &&
+          Vector2.distance(_ship.position, g.position) < _gatePromptRadius)
+    );
+
     if (!_hubPanel.isOpen) {
       final bullet = _playerController.handleInput(inputManager, deltaTime);
       if (bullet != null) _bullets.add(bullet);

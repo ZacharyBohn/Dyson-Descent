@@ -46,6 +46,9 @@ class DungeonScene extends Scene {
   void update(double deltaTime) {
     _entryFlash = (_entryFlash - deltaTime * 2.0).clamp(0.0, 1.0);
 
+    // Always allow tap-to-extract in dungeon.
+    inputManager.interactionAvailable = true;
+
     if (inputManager.isKeyPressed(GameKey.interact)) {
       onChangeScene(SceneType.overworld);
     }

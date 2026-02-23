@@ -182,22 +182,53 @@ Manual Test
 
 ⸻
 
-Phase 5 — HUD
+Phase 5 — HUD (Adjustment)
 
-Display:
-  • Health
-  • Fuel
-  • Cargo:
-  • Common count
-  • Rare count
-  • Gold (initialized to 0)
-
-Simple top-left overlay.
+5.1 Mini Map Layout Fix
+	•	Move music mute button from left of mini map → directly below mini map.
+	•	Maintain consistent margin spacing.
+	•	Ensure no overlap with HUD elements.
+	•	Preserve tap/click accessibility.
 
 Manual Test
-  • Values update live.
-  • No overlap with gameplay area.
-  • Values persist correctly.
+	•	Mute button renders below mini map.
+	•	Click/tap still toggles music correctly.
+	•	No layout shift during resize or scene transition.
+
+⸻
+
+Phase 5.2 — Touch Input Support (Extension)
+
+Touch Control System
+
+Add mobile-compatible input layer integrated with InputManager.
+
+Touch Rules:
+	•	Tap (short press) → Shoot.
+	•	Hold (press > threshold) → Thrust forward continuously.
+	•	Swipe left/right → Rotate ship.
+	•	Tap while interaction available → Trigger interaction instead of shooting.
+
+Implementation Notes:
+	•	Add touch gesture detection (tap, long press, drag).
+	•	Long-press threshold: ~150–250ms.
+	•	Rotation derived from horizontal swipe delta.
+	•	Interaction priority override:
+	•	If InteractionManager.hasAvailableInteraction == true
+	•	Tap triggers interact()
+	•	Shooting suppressed.
+
+Update:
+	•	InputManager
+	•	PlayerController
+	•	Possibly new InteractionManager (if not already abstracted)
+
+Manual Test
+	•	Tap fires single shot.
+	•	Holding produces sustained thrust.
+	•	Swiping rotates smoothly without jitter.
+	•	Interaction correctly overrides shooting.
+	•	Touch + keyboard input coexist without conflict
 
 ⸻
 
@@ -271,26 +302,57 @@ Manual Test
 
 ⸻
 
-Phase 9 — Enemy Ships (Open World)
+Phase 9 — Enemy Behavior Improvement
 
-9.1 Spawn System
-  • Finite count per cycle.
-  • Random roaming behavior.
-  • Aggro radius.
+9.4 Drive-By Combat Behavior
 
-9.2 Combat Behavior
-  • Predictable movement patterns.
-  • Deterministic attack intervals.
-  • No randomness in firing spread.
+Replace current “move directly toward player” logic.
 
-9.3 Enemy Death
-  • Drop small gold.
-  • Drop small chance of rare mineral.
+New Behavior:
+	•	Enemy maintains offset radius from player.
+	•	Approaches at angled vector.
+	•	Performs lateral pass (“drive-by”).
+	•	Fires during pass window.
+	•	After pass:
+	•	Create separation distance.
+	•	Re-approach from new vector.
+
+Constraints:
+	•	No collision suicides.
+	•	Maintain deterministic timing.
+	•	No randomness in fire cadence.
+	•	Avoid tight orbiting behavior.
 
 Manual Test
-  • Enemies pursue reliably.
-  • No infinite spawn.
-  • Combat fair and readable.
+	•	Enemies do not ram player.
+	•	Clear attack windows.
+	•	Movement readable and tactical.
+	•	No infinite circling edge cases.
+
+Phase 9 — Mini Map Intelligence Extension
+
+9.5 Enemy Vision Persistence on Mini Map
+
+Add temporal visibility system.
+
+Rules:
+	•	Enemy becomes visible on mini map once seen.
+	•	Remains visible for 60 seconds since last visible frame.
+	•	Timer resets whenever enemy re-enters view.
+	•	After 60 seconds unseen → removed from mini map only (not world).
+
+Implementation:
+	•	Add lastSeenTimestamp to EnemyShip.
+	•	Track visibility via camera frustum check.
+	•	Mini map renders enemies if:
+	•	currently visible OR
+	•	now - lastSeenTimestamp <= 60s.
+
+Manual Test
+	•	Enemy appears when first encountered.
+	•	Leaving area keeps enemy on mini map.
+	•	After 60 seconds unseen → disappears from mini map.
+	•	Timer resets properly on re-encounter.
 
 ⸻
 

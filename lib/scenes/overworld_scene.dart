@@ -14,6 +14,7 @@ import '../entities/enemy_ship.dart';
 import '../entities/mineral_drop.dart';
 import '../entities/planet.dart';
 import '../entities/ship.dart';
+import '../entities/warp_gate.dart';
 import '../hud/hub_panel.dart';
 import '../hud/hud.dart';
 import '../hud/minimap.dart';
@@ -42,6 +43,16 @@ class OverworldScene extends Scene {
   int _dropCounter = 0;
 
   Rect _muteButtonRect = Rect.zero;
+  double _totalTime = 0.0;
+
+  // Phase 10 — kill-quota and gate-loop state
+  int    _phaseEnemyTotal   = 10;
+  String _notificationText  = '';
+  double _notificationTimer = 0.0;
+  double _minimapFlashTimer = 0.0;
+
+  // Vision radius: approximate half-diagonal of a typical screen in world units.
+  static const double _visionRadius = 650.0;
 
   // Hub is a fixed world-space landmark near the centre.
   final Vector2 _hubPos = Vector2(300, 0);
@@ -58,50 +69,123 @@ class OverworldScene extends Scene {
     _playerController = PlayerController(controlledShip: _ship);
     _worldMap         = WorldMap();
     _economy          = PlayerEconomy();
-    _enemySpawner     = EnemySpawner();
+    _enemySpawner     = EnemySpawner(maxEnemies: 50);
 
     _worldMap.generateAsteroids(40);
-    _worldMap.generateWarpGates(4);
+    // No warp gates at start — first gate appears once all patrol enemies are cleared.
 
     _bullets.clear();
     _enemyBullets.clear();
     _drops.clear();
-    _dropCounter   = 0;
-    _hubPanel.isOpen = false;
+    _dropCounter       = 0;
+    _hubPanel.isOpen   = false;
+    _notificationTimer = 0;
+    _minimapFlashTimer = 0;
 
-    _spawnEnemiesNearGates();
+    _spawnInitialEnemies(10);
+    _showNotification('10 enemies patrol this sector — destroy them all!', 6.0);
 
     _hubPanel.onWarpNewSystem = () {
       _worldMap = WorldMap();
       _worldMap.generateAsteroids(40);
-      _worldMap.generateWarpGates(4);
       _drops.clear();
       _enemyBullets.clear();
-      _enemySpawner = EnemySpawner();
-      _spawnEnemiesNearGates();
+      _enemySpawner = EnemySpawner(maxEnemies: 50);
+      _spawnInitialEnemies(10);
+      _showNotification('New system! 10 enemies patrol this sector!', 6.0);
     };
 
     _starField.generate(rng: _rng);
   }
 
-  void _spawnEnemiesNearGates() {
-    for (final gate in _worldMap.gates) {
-      // Create a simple square patrol path around the gate
+  // ---------------------------------------------------------------------------
+  // Phase 10 helpers
+  // ---------------------------------------------------------------------------
+
+  void _showNotification(String text, double duration) {
+    _notificationText  = text;
+    _notificationTimer = duration;
+  }
+
+  /// Spawns [count] enemies spread randomly across the map for the initial
+  /// patrol phase.  Each enemy gets its own local circular patrol path.
+  void _spawnInitialEnemies(int count) {
+    _phaseEnemyTotal = count;
+    for (int i = 0; i < count; i++) {
+      Vector2 pos;
+      int attempts = 0;
+      do {
+        final angle = _rng.nextDouble() * 2 * math.pi;
+        final dist  = 2000.0 + _rng.nextDouble() * 4000.0;
+        pos = Vector2(math.cos(angle) * dist, math.sin(angle) * dist);
+        attempts++;
+      } while (attempts < 50 && Vector2.distance(pos, _hubPos) < 1000);
+
       final waypoints = List.generate(4, (j) {
-        final angle = j * math.pi / 2;
-        return Vector2(
-          gate.position.x + math.cos(angle) * 180,
-          gate.position.y + math.sin(angle) * 180,
-        );
+        final a = j * math.pi / 2;
+        return Vector2(pos.x + math.cos(a) * 150, pos.y + math.sin(a) * 150);
       });
-      final path = PatrolPath(waypoints: waypoints, moveSpeed: 80);
 
       final before = _enemySpawner.activeEnemies.length;
-      _enemySpawner.spawnGroup(gate.position, 3);
-      for (int i = before; i < _enemySpawner.activeEnemies.length; i++) {
-        _enemySpawner.activeEnemies[i].patrolPath = path;
+      _enemySpawner.spawnGroup(pos, 1);
+      if (_enemySpawner.activeEnemies.length > before) {
+        _enemySpawner.activeEnemies.last.patrolPath =
+            PatrolPath(waypoints: waypoints, moveSpeed: 70);
       }
     }
+  }
+
+  /// Called whenever an enemy dies.  Drops loot, flashes the minimap, and
+  /// either shows the remaining count or triggers a gate spawn.
+  void _handleEnemyKill(EnemyShip enemy) {
+    _spawnEnemyDrops(enemy);
+    _minimapFlashTimer = 5.0;
+
+    final remaining = _enemySpawner.aliveCount;
+    if (remaining > 0) {
+      _showNotification('$remaining / $_phaseEnemyTotal enemies remain', 3.5);
+    } else {
+      _spawnGateWithEnemies();
+    }
+  }
+
+  /// Spawns a new warp gate at a random distant position and places 5 guards
+  /// around it.  Resets the kill quota for the next phase.
+  void _spawnGateWithEnemies() {
+    Vector2 gatePos;
+    int attempts = 0;
+    do {
+      final angle = _rng.nextDouble() * 2 * math.pi;
+      final dist  = 1500.0 + _rng.nextDouble() * 3500.0;
+      gatePos = Vector2(math.cos(angle) * dist, math.sin(angle) * dist);
+      attempts++;
+    } while (attempts < 50 && Vector2.distance(gatePos, _hubPos) < 1200);
+
+    final gateIndex = _worldMap.gates.length;
+    _worldMap.gates.add(WarpGate(
+      id:        'gate_$gateIndex',
+      position:  gatePos,
+      dungeonId: 'dungeon_$gateIndex',
+    ));
+
+    const int guardCount = 5;
+    _phaseEnemyTotal = guardCount;
+
+    final waypoints = List.generate(4, (j) {
+      final a = j * math.pi / 2;
+      return Vector2(gatePos.x + math.cos(a) * 180, gatePos.y + math.sin(a) * 180);
+    });
+
+    final before = _enemySpawner.activeEnemies.length;
+    _enemySpawner.spawnGroup(gatePos, guardCount);
+    for (int i = before; i < _enemySpawner.activeEnemies.length; i++) {
+      final path = PatrolPath(waypoints: waypoints, moveSpeed: 80);
+      path.currentIndex = (i - before) % waypoints.length;
+      _enemySpawner.activeEnemies[i].patrolPath = path;
+    }
+
+    _showNotification('Warp gate appeared! Eliminate the $guardCount guards!', 6.0);
+    _minimapFlashTimer = 5.0; // reveal all enemies so player can find the gate
   }
 
   // ---------------------------------------------------------------------------
@@ -110,6 +194,10 @@ class OverworldScene extends Scene {
 
   @override
   void update(double deltaTime) {
+    _totalTime += deltaTime;
+    if (_notificationTimer > 0) _notificationTimer -= deltaTime;
+    if (_minimapFlashTimer > 0) _minimapFlashTimer -= deltaTime;
+
     if (inputManager.isMouseClicked()) {
       final pos = inputManager.mouseClickPosition;
       if (pos != null && _muteButtonRect.contains(pos)) {
@@ -140,17 +228,21 @@ class OverworldScene extends Scene {
     for (final b      in _enemyBullets)     { b.update(deltaTime); }
     for (final drop   in _drops)            { drop.update(deltaTime); }
 
-    // Update enemy AI and collect any shots fired
+    // Update enemy AI and collect any shots fired; stamp vision timestamps.
     for (final enemy in _enemySpawner.activeEnemies) {
       if (!enemy.isActive) continue;
       final shot = enemy.updateAI(_ship, deltaTime);
       if (shot != null) _enemyBullets.add(shot);
+      if (Vector2.distance(_ship.position, enemy.position) <= _visionRadius) {
+        enemy.lastSeenTime = _totalTime;
+      }
     }
 
     _checkBulletPlanetCollisions();
     _checkBulletEnemyCollisions();
     _checkEnemyBulletShipCollisions();
     _checkEnemyShipRamCollisions(deltaTime);
+    _checkShipAsteroidCollisions(deltaTime);
     _checkShipDropCollisions();
 
     _bullets.removeWhere((b) => !b.isActive);
@@ -201,11 +293,14 @@ class OverworldScene extends Scene {
     _hud.render(renderer, _ship, _economy);
     _minimap.render(
       renderer,
-      shipPos:     _ship.position,
-      worldRadius: _worldMap.radius,
-      planets:     _worldMap.planets,
-      gates:       _worldMap.gates,
-      hubPos:      _hubPos,
+      shipPos:         _ship.position,
+      worldRadius:     _worldMap.radius,
+      planets:         _worldMap.planets,
+      gates:           _worldMap.gates,
+      hubPos:          _hubPos,
+      enemies:         _enemySpawner.activeEnemies,
+      totalTime:       _totalTime,
+      flashAllEnemies: _minimapFlashTimer > 0,
     );
     _renderMuteButton(renderer, w);
 
@@ -216,6 +311,21 @@ class OverworldScene extends Scene {
     if (_hubPanel.isOpen) _hubPanel.render(renderer, _ship, _economy);
 
     if (!_hubPanel.isOpen) _renderNearestGatePrompt(renderer, w, h);
+
+    // Kill-quota notification — top-centre, fades during last 1.5 s
+    if (_notificationTimer > 0) _renderNotification(renderer, w, h);
+  }
+
+  void _renderNotification(Renderer renderer, double w, double h) {
+    final fade  = (_notificationTimer / 1.5).clamp(0.0, 1.0);
+    final alpha = (fade * 220 + 20).round();
+    final x     = w / 2 - _notificationText.length * 4.3;
+    renderer.drawText(
+      _notificationText,
+      Vector2(x, h / 2 - 60),
+      color: Color.fromARGB(alpha, 255, 210, 60),
+      fontSize: 17,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -342,7 +452,7 @@ class OverworldScene extends Scene {
           final wasAlive = !enemy.isDead();
           enemy.takeDamage(bullet.damage);
           bullet.isActive = false;
-          if (wasAlive && enemy.isDead()) _spawnEnemyDrops(enemy);
+          if (wasAlive && enemy.isDead()) _handleEnemyKill(enemy);
           break;
         }
       }
@@ -366,7 +476,7 @@ class OverworldScene extends Scene {
         _ship.takeDamage(15 * deltaTime);
         final wasDead = enemy.isDead();
         enemy.takeDamage(30 * deltaTime);
-        if (!wasDead && enemy.isDead()) _spawnEnemyDrops(enemy);
+        if (!wasDead && enemy.isDead()) _handleEnemyKill(enemy);
       }
     }
   }
@@ -376,6 +486,30 @@ class OverworldScene extends Scene {
       if (!drop.isActive) continue;
       if (Vector2.distance(_ship.position, drop.position) < _ship.radius + drop.radius) {
         drop.collect(_ship);
+      }
+    }
+  }
+
+  void _checkShipAsteroidCollisions(double deltaTime) {
+    for (final asteroid in _worldMap.planets) {
+      if (!asteroid.isActive) continue;
+      final dist = Vector2.distance(_ship.position, asteroid.position);
+      final minDist = _ship.radius + asteroid.radius;
+      if (dist < minDist) {
+        // Push ship out along the collision normal
+        final diff = _ship.position - asteroid.position;
+        final normal = diff.length() > 0 ? diff.normalized() : Vector2(1, 0);
+        _ship.position = asteroid.position + normal * minDist;
+
+        // Reflect velocity along the normal and dampen it
+        final dot = _ship.velocity.x * normal.x + _ship.velocity.y * normal.y;
+        if (dot < 0) {
+          _ship.velocity = _ship.velocity - normal * (2 * dot);
+          _ship.velocity = _ship.velocity * 0.3;
+        }
+
+        // Deal collision damage
+        _ship.takeDamage(20 * deltaTime);
       }
     }
   }
@@ -410,15 +544,15 @@ class OverworldScene extends Scene {
   }
 
   // ---------------------------------------------------------------------------
-  // Mute button – drawn in screen space, to the left of the minimap
+  // Mute button – drawn in screen space, below the minimap
   // ---------------------------------------------------------------------------
 
   void _renderMuteButton(Renderer renderer, double w) {
     const double btnW   = 44;
     const double btnH   = 36;
     const double gap    = 8;
-    final double bx = w - Minimap.size - Minimap.pad - gap - btnW;
-    const double by = Minimap.pad;
+    final double bx = w - Minimap.pad - btnW;
+    final double by = Minimap.pad + Minimap.size + gap;
 
     _muteButtonRect = Rect.fromLTWH(bx, by, btnW, btnH);
 

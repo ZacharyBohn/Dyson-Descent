@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import '../audio/audio_manager.dart';
 import '../core/game_transfer.dart';
-import '../core/input_manager.dart';
 import '../core/renderer.dart';
 import '../core/scene.dart';
 import '../economy/player_economy.dart';
@@ -14,7 +13,6 @@ import '../entities/enemy_ship.dart';
 import '../entities/mineral_drop.dart';
 import '../entities/planet.dart';
 import '../entities/ship.dart';
-import '../entities/warp_gate.dart';
 import '../hud/hub_panel.dart';
 import '../hud/hud.dart';
 import '../hud/minimap.dart';
@@ -25,29 +23,29 @@ import '../world/star_field.dart';
 import '../world/world_map.dart';
 
 class OverworldScene extends Scene {
-  late Ship             _ship;
+  late Ship _ship;
   late PlayerController _playerController;
-  late WorldMap         _worldMap;
-  late PlayerEconomy    _economy;
-  late EnemySpawner     _enemySpawner;
+  late WorldMap _worldMap;
+  late PlayerEconomy _economy;
+  late EnemySpawner _enemySpawner;
 
-  final StarField  _starField = StarField();
-  final HubPanel   _hubPanel  = HubPanel();
-  final HUD        _hud       = HUD();
-  final Minimap    _minimap   = Minimap();
-  final math.Random _rng      = math.Random();
+  final StarField _starField = StarField();
+  final HubPanel _hubPanel = HubPanel();
+  final HUD _hud = HUD();
+  final Minimap _minimap = Minimap();
+  final math.Random _rng = math.Random();
 
-  final List<Bullet>      _bullets      = [];
-  final List<Bullet>      _enemyBullets = [];
-  final List<MineralDrop> _drops        = [];
+  final List<Bullet> _bullets = [];
+  final List<Bullet> _enemyBullets = [];
+  final List<MineralDrop> _drops = [];
   int _dropCounter = 0;
 
   Rect _muteButtonRect = Rect.zero;
   double _totalTime = 0.0;
 
   // Phase 10 — kill-quota and gate-loop state
-  int    _phaseEnemyTotal   = 10;
-  String _notificationText  = '';
+  int _phaseEnemyTotal = 10;
+  String _notificationText = '';
   double _notificationTimer = 0.0;
   double _minimapFlashTimer = 0.0;
 
@@ -65,20 +63,32 @@ class OverworldScene extends Scene {
 
   @override
   void onEnter() {
-    _ship             = Ship(id: 'player', position: Vector2.zero());
-    _playerController = PlayerController(controlledShip: _ship);
-    _worldMap         = WorldMap();
-    _economy          = PlayerEconomy();
-    _enemySpawner     = EnemySpawner(maxEnemies: 50);
+    // Restore ship/economy if returning from the race; otherwise start fresh.
+    if (GameTransfer.ship != null) {
+      _ship = GameTransfer.ship!;
+      _economy = GameTransfer.economy ?? PlayerEconomy();
+      GameTransfer.ship = null;
+      GameTransfer.economy = null;
+      // Re-anchor near origin so the player doesn't spawn in race-space coordinates.
+      _ship.position = Vector2.zero();
+      _ship.velocity = Vector2.zero();
+      _playerController = PlayerController(controlledShip: _ship);
+    } else {
+      _ship = Ship(id: 'player', position: Vector2.zero());
+      _playerController = PlayerController(controlledShip: _ship);
+      _economy = PlayerEconomy();
+    }
+
+    _worldMap = WorldMap();
+    _enemySpawner = EnemySpawner(maxEnemies: 50);
 
     _worldMap.generateAsteroids(40);
-    // No warp gates at start — first gate appears once all patrol enemies are cleared.
 
     _bullets.clear();
     _enemyBullets.clear();
     _drops.clear();
-    _dropCounter       = 0;
-    _hubPanel.isOpen   = false;
+    _dropCounter = 0;
+    _hubPanel.isOpen = false;
     _notificationTimer = 0;
     _minimapFlashTimer = 0;
 
@@ -103,7 +113,7 @@ class OverworldScene extends Scene {
   // ---------------------------------------------------------------------------
 
   void _showNotification(String text, double duration) {
-    _notificationText  = text;
+    _notificationText = text;
     _notificationTimer = duration;
   }
 
@@ -116,7 +126,7 @@ class OverworldScene extends Scene {
       int attempts = 0;
       do {
         final angle = _rng.nextDouble() * 2 * math.pi;
-        final dist  = 2000.0 + _rng.nextDouble() * 4000.0;
+        final dist = 2000.0 + _rng.nextDouble() * 4000.0;
         pos = Vector2(math.cos(angle) * dist, math.sin(angle) * dist);
         attempts++;
       } while (attempts < 50 && Vector2.distance(pos, _hubPos) < 1000);
@@ -129,8 +139,10 @@ class OverworldScene extends Scene {
       final before = _enemySpawner.activeEnemies.length;
       _enemySpawner.spawnGroup(pos, 1);
       if (_enemySpawner.activeEnemies.length > before) {
-        _enemySpawner.activeEnemies.last.patrolPath =
-            PatrolPath(waypoints: waypoints, moveSpeed: 70);
+        _enemySpawner.activeEnemies.last.patrolPath = PatrolPath(
+          waypoints: waypoints,
+          moveSpeed: 70,
+        );
       }
     }
   }
@@ -145,47 +157,9 @@ class OverworldScene extends Scene {
     if (remaining > 0) {
       _showNotification('$remaining / $_phaseEnemyTotal enemies remain', 3.5);
     } else {
-      _spawnGateWithEnemies();
+      _showNotification('Sector cleared! New enemies incoming...', 4.0);
+      _spawnInitialEnemies(10);
     }
-  }
-
-  /// Spawns a new warp gate at a random distant position and places 5 guards
-  /// around it.  Resets the kill quota for the next phase.
-  void _spawnGateWithEnemies() {
-    Vector2 gatePos;
-    int attempts = 0;
-    do {
-      final angle = _rng.nextDouble() * 2 * math.pi;
-      final dist  = 1500.0 + _rng.nextDouble() * 3500.0;
-      gatePos = Vector2(math.cos(angle) * dist, math.sin(angle) * dist);
-      attempts++;
-    } while (attempts < 50 && Vector2.distance(gatePos, _hubPos) < 1200);
-
-    final gateIndex = _worldMap.gates.length;
-    _worldMap.gates.add(WarpGate(
-      id:        'gate_$gateIndex',
-      position:  gatePos,
-      dungeonId: 'dungeon_$gateIndex',
-    ));
-
-    const int guardCount = 5;
-    _phaseEnemyTotal = guardCount;
-
-    final waypoints = List.generate(4, (j) {
-      final a = j * math.pi / 2;
-      return Vector2(gatePos.x + math.cos(a) * 180, gatePos.y + math.sin(a) * 180);
-    });
-
-    final before = _enemySpawner.activeEnemies.length;
-    _enemySpawner.spawnGroup(gatePos, guardCount);
-    for (int i = before; i < _enemySpawner.activeEnemies.length; i++) {
-      final path = PatrolPath(waypoints: waypoints, moveSpeed: 80);
-      path.currentIndex = (i - before) % waypoints.length;
-      _enemySpawner.activeEnemies[i].patrolPath = path;
-    }
-
-    _showNotification('Warp gate appeared! Eliminate the $guardCount guards!', 6.0);
-    _minimapFlashTimer = 5.0; // reveal all enemies so player can find the gate
   }
 
   // ---------------------------------------------------------------------------
@@ -207,12 +181,9 @@ class OverworldScene extends Scene {
 
     // Tell InputManager whether a tap should trigger interact (near hub/gate)
     // rather than fire. Hub-open state is excluded so tap routes to panel buttons.
-    inputManager.interactionAvailable = !_hubPanel.isOpen && (
-      Vector2.distance(_ship.position, _hubPos) < HubPanel.dockRadius ||
-      _worldMap.gates.any((g) =>
-          g.isActive &&
-          Vector2.distance(_ship.position, g.position) < _gatePromptRadius)
-    );
+    inputManager.interactionAvailable =
+        !_hubPanel.isOpen &&
+        Vector2.distance(_ship.position, _hubPos) < HubPanel.dockRadius;
 
     if (!_hubPanel.isOpen) {
       final bullet = _playerController.handleInput(inputManager, deltaTime);
@@ -222,11 +193,18 @@ class OverworldScene extends Scene {
     }
 
     _ship.update(deltaTime);
-    for (final planet in _worldMap.planets) { planet.update(deltaTime); }
-    for (final gate   in _worldMap.gates)   { gate.update(deltaTime); }
-    for (final b      in _bullets)          { b.update(deltaTime); }
-    for (final b      in _enemyBullets)     { b.update(deltaTime); }
-    for (final drop   in _drops)            { drop.update(deltaTime); }
+    for (final planet in _worldMap.planets) {
+      planet.update(deltaTime);
+    }
+    for (final b in _bullets) {
+      b.update(deltaTime);
+    }
+    for (final b in _enemyBullets) {
+      b.update(deltaTime);
+    }
+    for (final drop in _drops) {
+      drop.update(deltaTime);
+    }
 
     // Update enemy AI and collect any shots fired; stamp vision timestamps.
     for (final enemy in _enemySpawner.activeEnemies) {
@@ -247,20 +225,19 @@ class OverworldScene extends Scene {
 
     _bullets.removeWhere((b) => !b.isActive);
     _enemyBullets.removeWhere((b) => !b.isActive);
-    _drops.removeWhere((d)   => !d.isActive);
+    _drops.removeWhere((d) => !d.isActive);
     _enemySpawner.removeDefeated();
 
     _enforceWorldBoundary();
 
     _hubPanel.update(
-      input:   inputManager,
+      input: inputManager,
       shipPos: _ship.position,
-      hubPos:  _hubPos,
-      ship:    _ship,
+      hubPos: _hubPos,
+      ship: _ship,
       economy: _economy,
     );
 
-    if (!_hubPanel.isOpen) _checkWarpGateEntry();
   }
 
   // ---------------------------------------------------------------------------
@@ -276,15 +253,27 @@ class OverworldScene extends Scene {
 
     // World space
     renderer.canvas.save();
-    renderer.canvas.translate(w / 2 - _ship.position.x, h / 2 - _ship.position.y);
+    renderer.canvas.translate(
+      w / 2 - _ship.position.x,
+      h / 2 - _ship.position.y,
+    );
 
     _renderHubStructure(renderer);
-    for (final gate   in _worldMap.gates)   { gate.render(renderer); }
-    for (final planet in _worldMap.planets) { if (planet.isActive) planet.render(renderer); }
-    for (final enemy  in _enemySpawner.activeEnemies) { if (enemy.isActive) enemy.render(renderer); }
-    for (final drop   in _drops)            { if (drop.isActive) drop.render(renderer); }
-    for (final b      in _bullets)          { if (b.isActive) b.render(renderer); }
-    for (final b      in _enemyBullets)     { if (b.isActive) b.render(renderer); }
+    for (final planet in _worldMap.planets) {
+      if (planet.isActive) planet.render(renderer);
+    }
+    for (final enemy in _enemySpawner.activeEnemies) {
+      if (enemy.isActive) enemy.render(renderer);
+    }
+    for (final drop in _drops) {
+      if (drop.isActive) drop.render(renderer);
+    }
+    for (final b in _bullets) {
+      if (b.isActive) b.render(renderer);
+    }
+    for (final b in _enemyBullets) {
+      if (b.isActive) b.render(renderer);
+    }
     _ship.render(renderer);
 
     renderer.canvas.restore();
@@ -293,13 +282,12 @@ class OverworldScene extends Scene {
     _hud.render(renderer, _ship, _economy);
     _minimap.render(
       renderer,
-      shipPos:         _ship.position,
-      worldRadius:     _worldMap.radius,
-      planets:         _worldMap.planets,
-      gates:           _worldMap.gates,
-      hubPos:          _hubPos,
-      enemies:         _enemySpawner.activeEnemies,
-      totalTime:       _totalTime,
+      shipPos: _ship.position,
+      worldRadius: _worldMap.radius,
+      planets: _worldMap.planets,
+      hubPos: _hubPos,
+      enemies: _enemySpawner.activeEnemies,
+      totalTime: _totalTime,
       flashAllEnemies: _minimapFlashTimer > 0,
     );
     _renderMuteButton(renderer, w);
@@ -310,16 +298,14 @@ class OverworldScene extends Scene {
     }
     if (_hubPanel.isOpen) _hubPanel.render(renderer, _ship, _economy);
 
-    if (!_hubPanel.isOpen) _renderNearestGatePrompt(renderer, w, h);
-
     // Kill-quota notification — top-centre, fades during last 1.5 s
     if (_notificationTimer > 0) _renderNotification(renderer, w, h);
   }
 
   void _renderNotification(Renderer renderer, double w, double h) {
-    final fade  = (_notificationTimer / 1.5).clamp(0.0, 1.0);
+    final fade = (_notificationTimer / 1.5).clamp(0.0, 1.0);
     final alpha = (fade * 220 + 20).round();
-    final x     = w / 2 - _notificationText.length * 4.3;
+    final x = w / 2 - _notificationText.length * 4.3;
     renderer.drawText(
       _notificationText,
       Vector2(x, h / 2 - 60),
@@ -362,7 +348,11 @@ class OverworldScene extends Scene {
     }
 
     // Core body
-    renderer.canvas.drawCircle(Offset(cx, cy), 18, Paint()..color = const Color(0xFF1A3044));
+    renderer.canvas.drawCircle(
+      Offset(cx, cy),
+      18,
+      Paint()..color = const Color(0xFF1A3044),
+    );
     renderer.canvas.drawCircle(
       Offset(cx, cy),
       18,
@@ -372,8 +362,12 @@ class OverworldScene extends Scene {
         ..strokeWidth = 2,
     );
 
-    renderer.drawText('HUB', Vector2(cx - 12, cy - 30),
-        color: const Color(0xFF88CCFF), fontSize: 11);
+    renderer.drawText(
+      'HUB',
+      Vector2(cx - 12, cy - 30),
+      color: const Color(0xFF88CCFF),
+      fontSize: 11,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -381,46 +375,14 @@ class OverworldScene extends Scene {
   // ---------------------------------------------------------------------------
 
   void _renderHubPrompt(Renderer renderer, double w, double h, double dist) {
-    final t     = (1 - dist / HubPanel.promptRadius).clamp(0.0, 1.0);
+    final t = (1 - dist / HubPanel.promptRadius).clamp(0.0, 1.0);
     final alpha = (t * 215 + 40).round();
-    renderer.drawText('Press E to dock', Vector2(w / 2 - 55, h - 60),
-        color: Color.fromARGB(alpha, 100, 220, 255), fontSize: 16);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Warp gate helpers
-  // ---------------------------------------------------------------------------
-
-  static const double _gatePromptRadius = 120.0;
-
-  void _checkWarpGateEntry() {
-    if (!inputManager.isKeyPressed(GameKey.interact)) return;
-    for (final gate in _worldMap.gates) {
-      if (!gate.isActive) continue;
-      if (Vector2.distance(_ship.position, gate.position) < _gatePromptRadius) {
-        GameTransfer.dungeonId = gate.dungeonId;
-        onChangeScene(SceneType.dungeon);
-        return;
-      }
-    }
-  }
-
-  void _renderNearestGatePrompt(Renderer renderer, double w, double h) {
-    for (final gate in _worldMap.gates) {
-      if (!gate.isActive) continue;
-      final dist = Vector2.distance(_ship.position, gate.position);
-      if (dist < _gatePromptRadius) {
-        final t     = (1 - dist / _gatePromptRadius).clamp(0.0, 1.0);
-        final alpha = (t * 215 + 40).round();
-        renderer.drawText(
-          'Press E to enter dungeon',
-          Vector2(w / 2 - 90, h - 60),
-          color: Color.fromARGB(alpha, 0, 220, 220),
-          fontSize: 16,
-        );
-        return;
-      }
-    }
+    renderer.drawText(
+      'Press E to dock',
+      Vector2(w / 2 - 55, h - 60),
+      color: Color.fromARGB(alpha, 100, 220, 255),
+      fontSize: 16,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -432,7 +394,8 @@ class OverworldScene extends Scene {
       if (!bullet.isActive) continue;
       for (final planet in _worldMap.planets) {
         if (!planet.isActive) continue;
-        if (Vector2.distance(bullet.position, planet.position) < bullet.radius + planet.radius) {
+        if (Vector2.distance(bullet.position, planet.position) <
+            bullet.radius + planet.radius) {
           final wasAlive = !planet.isDead();
           planet.takeDamage(bullet.damage);
           bullet.isActive = false;
@@ -448,7 +411,8 @@ class OverworldScene extends Scene {
       if (!bullet.isActive) continue;
       for (final enemy in _enemySpawner.activeEnemies) {
         if (!enemy.isActive) continue;
-        if (Vector2.distance(bullet.position, enemy.position) < bullet.radius + enemy.radius) {
+        if (Vector2.distance(bullet.position, enemy.position) <
+            bullet.radius + enemy.radius) {
           final wasAlive = !enemy.isDead();
           enemy.takeDamage(bullet.damage);
           bullet.isActive = false;
@@ -462,7 +426,8 @@ class OverworldScene extends Scene {
   void _checkEnemyBulletShipCollisions() {
     for (final bullet in _enemyBullets) {
       if (!bullet.isActive) continue;
-      if (Vector2.distance(bullet.position, _ship.position) < bullet.radius + _ship.radius) {
+      if (Vector2.distance(bullet.position, _ship.position) <
+          bullet.radius + _ship.radius) {
         _ship.takeDamage(bullet.damage);
         bullet.isActive = false;
       }
@@ -472,7 +437,8 @@ class OverworldScene extends Scene {
   void _checkEnemyShipRamCollisions(double deltaTime) {
     for (final enemy in _enemySpawner.activeEnemies) {
       if (!enemy.isActive) continue;
-      if (Vector2.distance(_ship.position, enemy.position) < _ship.radius + enemy.radius) {
+      if (Vector2.distance(_ship.position, enemy.position) <
+          _ship.radius + enemy.radius) {
         _ship.takeDamage(15 * deltaTime);
         final wasDead = enemy.isDead();
         enemy.takeDamage(30 * deltaTime);
@@ -484,7 +450,8 @@ class OverworldScene extends Scene {
   void _checkShipDropCollisions() {
     for (final drop in _drops) {
       if (!drop.isActive) continue;
-      if (Vector2.distance(_ship.position, drop.position) < _ship.radius + drop.radius) {
+      if (Vector2.distance(_ship.position, drop.position) <
+          _ship.radius + drop.radius) {
         drop.collect(_ship);
       }
     }
@@ -518,13 +485,15 @@ class OverworldScene extends Scene {
     for (int i = 0; i < planet.dropAmount; i++) {
       final angle = _rng.nextDouble() * 2 * math.pi;
       final speed = 30.0 + _rng.nextDouble() * 60.0;
-      _drops.add(MineralDrop(
-        id:       'drop_${_dropCounter++}',
-        position: Vector2(planet.position.x, planet.position.y),
-        velocity: Vector2.fromAngle(angle) * speed,
-        type:     planet.mineralType,
-        quantity: 1,
-      ));
+      _drops.add(
+        MineralDrop(
+          id: 'drop_${_dropCounter++}',
+          position: Vector2(planet.position.x, planet.position.y),
+          velocity: Vector2.fromAngle(angle) * speed,
+          type: planet.mineralType,
+          quantity: 1,
+        ),
+      );
     }
   }
 
@@ -533,13 +502,15 @@ class OverworldScene extends Scene {
     for (int i = 0; i < count; i++) {
       final angle = _rng.nextDouble() * 2 * math.pi;
       final speed = 40.0 + _rng.nextDouble() * 60.0;
-      _drops.add(MineralDrop(
-        id:       'drop_${_dropCounter++}',
-        position: Vector2(enemy.position.x, enemy.position.y),
-        velocity: Vector2.fromAngle(angle) * speed,
-        type:     MineralType.rare,
-        quantity: 1,
-      ));
+      _drops.add(
+        MineralDrop(
+          id: 'drop_${_dropCounter++}',
+          position: Vector2(enemy.position.x, enemy.position.y),
+          velocity: Vector2.fromAngle(angle) * speed,
+          type: MineralType.rare,
+          quantity: 1,
+        ),
+      );
     }
   }
 
@@ -548,15 +519,15 @@ class OverworldScene extends Scene {
   // ---------------------------------------------------------------------------
 
   void _renderMuteButton(Renderer renderer, double w) {
-    const double btnW   = 44;
-    const double btnH   = 36;
-    const double gap    = 8;
+    const double btnW = 44;
+    const double btnH = 36;
+    const double gap = 8;
     final double bx = w - Minimap.pad - btnW;
     final double by = Minimap.pad + Minimap.size + gap;
 
     _muteButtonRect = Rect.fromLTWH(bx, by, btnW, btnH);
 
-    final muted  = AudioManager.instance.isMuted;
+    final muted = AudioManager.instance.isMuted;
     final canvas = renderer.canvas;
 
     // Background
@@ -583,9 +554,21 @@ class OverworldScene extends Scene {
 
   void _enforceWorldBoundary() {
     final r = _worldMap.radius;
-    if (_ship.position.x > r)  { _ship.position.x = r;  if (_ship.velocity.x > 0) _ship.velocity.x = 0; }
-    if (_ship.position.x < -r) { _ship.position.x = -r; if (_ship.velocity.x < 0) _ship.velocity.x = 0; }
-    if (_ship.position.y > r)  { _ship.position.y = r;  if (_ship.velocity.y > 0) _ship.velocity.y = 0; }
-    if (_ship.position.y < -r) { _ship.position.y = -r; if (_ship.velocity.y < 0) _ship.velocity.y = 0; }
+    if (_ship.position.x > r) {
+      _ship.position.x = r;
+      if (_ship.velocity.x > 0) _ship.velocity.x = 0;
+    }
+    if (_ship.position.x < -r) {
+      _ship.position.x = -r;
+      if (_ship.velocity.x < 0) _ship.velocity.x = 0;
+    }
+    if (_ship.position.y > r) {
+      _ship.position.y = r;
+      if (_ship.velocity.y > 0) _ship.velocity.y = 0;
+    }
+    if (_ship.position.y < -r) {
+      _ship.position.y = -r;
+      if (_ship.velocity.y < 0) _ship.velocity.y = 0;
+    }
   }
 }

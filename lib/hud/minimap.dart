@@ -3,7 +3,6 @@ import 'dart:ui';
 import '../core/renderer.dart';
 import '../entities/enemy_ship.dart';
 import '../entities/planet.dart';
-import '../entities/warp_gate.dart';
 import '../math/vector2.dart';
 
 class Minimap {
@@ -20,7 +19,6 @@ class Minimap {
     required Vector2 shipPos,
     required double worldRadius,
     required List<Planet> planets,
-    required List<WarpGate> gates,
     required Vector2 hubPos,
     List<EnemyShip> enemies = const [],
     double totalTime = 0.0,
@@ -55,15 +53,6 @@ class Minimap {
         w2m(planet.position),
         2.5,
         Paint()..color = planet.color,
-      );
-    }
-
-    // Warp gates
-    for (final gate in gates) {
-      canvas.drawCircle(
-        w2m(gate.position),
-        3.0,
-        Paint()..color = const Color(0xFF00FFEE),
       );
     }
 

@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import '../entities/enemy_ship.dart';
 import '../entities/planet.dart';
-import '../entities/warp_gate.dart';
 import '../math/vector2.dart';
 import '../resources/mineral_type.dart';
 
@@ -11,14 +10,12 @@ class WorldMap {
   final double radius;
   final List<Asteroid> planets;
   final List<EnemyShip> enemies;
-  final List<WarpGate> gates;
 
   final math.Random _rng;
 
   WorldMap({this.radius = 10000, int? seed})
       : planets = [],
         enemies = [],
-        gates = [],
         _rng = math.Random(seed);
 
   void generateAsteroids(int count) {
@@ -77,18 +74,6 @@ class WorldMap {
       default: r = v; g = p; b = q;
     }
     return Color.fromARGB(255, (r * 255).round(), (g * 255).round(), (b * 255).round());
-  }
-
-  void generateWarpGates(int count) {
-    gates.clear();
-    for (int i = 0; i < count; i++) {
-      final pos = _randomPosition(minDist: 1000);
-      gates.add(WarpGate(
-        id: 'gate_$i',
-        position: pos,
-        dungeonId: 'dungeon_$i',
-      ));
-    }
   }
 
   Vector2 _randomPosition({double minDist = 0}) {

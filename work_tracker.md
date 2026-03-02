@@ -10,494 +10,429 @@ Map assumption: Fixed-size world centered at (0,0).
 
 Phase 0 — Project Skeleton
 
-0.0 Class Layout [COMPLETE]
-  • All classes laid out into individual files under lib/
-  • File structure:
-      lib/
-        main.dart                        # App entry, GameShell widget
-        core/
-          game.dart                      # Game (scene manager + loop driver)
-          scene.dart                     # Scene abstract + StartScene, OverworldScene, DungeonScene, HubScene
-          input_manager.dart             # InputManager + GameKey enum
-          renderer.dart                  # Renderer (wraps Flutter Canvas)
-        math/
-          vector2.dart                   # Vector2
-        entities/
-          entity.dart                    # Entity (abstract), LivingEntity (abstract)
-          ship.dart                      # Ship
-          bullet.dart                    # Bullet
-          mineral_drop.dart              # MineralDrop
-          planet.dart                    # Planet
-          enemy_ship.dart                # EnemyShip
-          warp_gate.dart                 # WarpGate
-          ai_core.dart                   # AICore
-        combat/
-          weapon_system.dart             # WeaponSystem
-          shield.dart                    # Shield
-        resources/
-          mineral_type.dart              # MineralType enum
-          cargo.dart                     # Cargo
-        economy/
-          player_economy.dart            # PlayerEconomy
-          store.dart                     # Store
-          repair_shop.dart               # RepairShop
-        upgrades/
-          upgrade_type.dart              # UpgradeType enum
-          upgrade.dart                   # Upgrade
-          upgrade_shop.dart              # UpgradeShop
-        enemies/
-          patrol_path.dart               # PatrolPath
-          enemy_spawner.dart             # EnemySpawner
-        player/
-          player_controller.dart         # PlayerController
-        world/
-          world_map.dart                 # WorldMap
-          warp_gate_manager.dart         # WarpGateManager
-        dungeon/
-          dungeon.dart                   # Dungeon
-          dungeon_layer.dart             # DungeonLayer
-          dungeon_manager.dart           # DungeonManager
-        hud/
-          hud.dart                       # HUD
-        collision/
-          collision_manager.dart         # CollisionManager
-
-0.1 Engine Setup
-  • Create window
-  • Fixed update loop
-  • Rendering pipeline
-  • Input handling
-  • Basic entity system
-  • Collision system (circle-based for simplicity)
+- [x] 0.0 Class Layout — All classes laid out into individual files under lib/
+- [x] 0.1 Engine Setup
+  - [x] Create window
+  - [x] Fixed update loop
+  - [x] Rendering pipeline
+  - [x] Input handling
+  - [x] Basic entity system
+  - [x] Collision system (circle-based)
 
 Manual Test
-  • App runs stable at target FPS.
-  • Input polling works.
-  • Objects render at correct coordinates.
+  - [x] App runs stable at target FPS
+  - [x] Input polling works
+  - [x] Objects render at correct coordinates
 
 ⸻
 
 Phase 1 — Game Entry & Background
 
-1.1 Start Screen
-  • "Start" button centered.
-  • Clicking transitions to main game scene.
-
-1.2 Space Background
-  • Black background.
-  • Procedurally generate ~300–600 stars.
-  • Random size and brightness.
-  • Stars remain static (no parallax yet).
+- [x] 1.1 Start Screen — "Start" button centered; clicking transitions to overworld
+- [x] 1.2 Space Background — black background; ~300–600 procedural stars; random size/brightness
 
 Manual Test
-  • Start button transitions correctly.
-  • Stars render consistently.
-  • No performance degradation.
+  - [x] Start button transitions correctly
+  - [x] Stars render consistently
+  - [x] No performance degradation
 
 ⸻
 
 Phase 2 — Player Ship Core Mechanics
 
-2.1 Base Ship
-  • Triangle or minimal vector sprite.
-  • Center spawn at (0,0).
-
-2.2 Movement System
-  • Rotate left/right.
-  • Thrust forward.
-  • Thrust backward (weaker than forward).
-  • Momentum-based physics.
-  • Global friction coefficient (space drag abstraction).
-
-Movement Model:
-  • Velocity vector accumulation.
-  • Rotation independent from velocity.
-  • Cap max speed.
-
-2.3 Health & Fuel
-  • Basic numeric properties.
-  • No depletion yet.
+- [x] 2.1 Base Ship — triangle/minimal vector sprite; center spawn at (0,0)
+- [x] 2.2 Movement System — rotate left/right; thrust forward/backward; momentum physics; friction; max speed cap
+- [x] 2.3 Health & Energy — basic numeric properties
 
 Manual Test
-  • Movement feels responsive.
-  • Friction prevents infinite drift.
-  • No jitter or rotation instability.
+  - [x] Movement feels responsive
+  - [x] Friction prevents infinite drift
+  - [x] No jitter or rotation instability
 
 ⸻
 
-Phase 3 — Map & Planet Generation
+Phase 3 — Map & Asteroid Generation
 
-3.1 Fixed World Bounds
-  • Define map radius (e.g., 10,000 px).
-  • Soft boundary or wrap disabled.
-
-3.2 Planet Generation
-  • Random positions.
-  • Size: 3–6× ship size.
-  • Random color.
-  • Random HP.
-  • Assign mineral type:
-  • Common
-  • Rare
-
-3.3 Planet Data Model
-  • HP
-  • Mineral type
-  • Mineral quantity drop range
+- [x] 3.1 Fixed World Bounds — map radius defined; soft boundary
+- [x] 3.2 Asteroid Generation — random positions; size 3–6× ship; random color; random HP; mineral type
+- [x] 3.3 Asteroid Data Model — HP, mineral type, mineral quantity drop range
 
 Manual Test
-  • Planets spawn without overlap at start.
-  • Collision detection accurate.
-  • No spawn inside player.
+  - [x] Asteroids spawn without overlap at start
+  - [x] Collision detection accurate
+  - [x] No spawn inside player
 
 ⸻
 
 Phase 4 — Combat Core
 
-4.1 Shooting
-  • Fire button.
-  • Projectile velocity based on ship orientation.
-  • Fire cooldown timer.
-
-4.2 Bullet-Planet Interaction
-  • On collision:
-  • Reduce planet HP.
-  • Planet flashes red briefly.
-  • On HP = 0:
-  • Destroy planet.
-  • Spawn mineral drops (physics-based float).
-
-4.3 Mineral Drops
-  • Two types:
-  • Common
-  • Rare
-  • Pickup via collision.
-  • Add to cargo.
+- [x] 4.1 Shooting — fire button; projectile velocity from ship orientation; fire cooldown
+- [x] 4.2 Bullet-Asteroid Interaction — reduce HP; flash red on hit; destroy and drop minerals
+- [x] 4.3 Mineral Drops — two types; pickup via collision; add to cargo
 
 Manual Test
-  • Flash effect visible.
-  • Planets drop correct minerals.
-  • Pickup increments cargo.
-  • No bullet tunneling issues.
+  - [x] Flash effect visible
+  - [x] Asteroids drop correct minerals
+  - [x] Pickup increments cargo
+  - [x] No bullet tunneling
 
 ⸻
 
-Phase 5 — HUD (Adjustment)
+Phase 5 — HUD Adjustments & Touch Input
 
-5.1 Mini Map Layout Fix
-	•	Move music mute button from left of mini map → directly below mini map.
-	•	Maintain consistent margin spacing.
-	•	Ensure no overlap with HUD elements.
-	•	Preserve tap/click accessibility.
+- [x] 5.1 Mini Map Layout Fix — mute button moved below mini map; consistent spacing; no overlap
+- [x] 5.2 Touch Input Support
+  - [x] Tap (short press) → Shoot
+  - [x] Hold (press > threshold) → Thrust forward
+  - [x] Swipe left/right → Rotate ship
+  - [x] Tap while interaction available → Trigger interact instead of shoot
+  - [x] InputManager and PlayerController updated
 
 Manual Test
-	•	Mute button renders below mini map.
-	•	Click/tap still toggles music correctly.
-	•	No layout shift during resize or scene transition.
+  - [x] Mute button renders below mini map
+  - [x] Tap fires single shot
+  - [x] Holding produces sustained thrust
+  - [x] Swiping rotates smoothly
+  - [x] Touch + keyboard coexist without conflict
 
 ⸻
 
-Phase 5.2 — Touch Input Support (Extension)
+Phase 6 — Hub Station
 
-Touch Control System
-
-Add mobile-compatible input layer integrated with InputManager.
-
-Touch Rules:
-	•	Tap (short press) → Shoot.
-	•	Hold (press > threshold) → Thrust forward continuously.
-	•	Swipe left/right → Rotate ship.
-	•	Tap while interaction available → Trigger interaction instead of shooting.
-
-Implementation Notes:
-	•	Add touch gesture detection (tap, long press, drag).
-	•	Long-press threshold: ~150–250ms.
-	•	Rotation derived from horizontal swipe delta.
-	•	Interaction priority override:
-	•	If InteractionManager.hasAvailableInteraction == true
-	•	Tap triggers interact()
-	•	Shooting suppressed.
-
-Update:
-	•	InputManager
-	•	PlayerController
-	•	Possibly new InteractionManager (if not already abstracted)
+- [x] 6.1 Hub Location — fixed location near center; docking zone; UI trigger when near
+- [x] 6.2 Hub UI — Store, Upgrade Shop, Repair Shop tabs
 
 Manual Test
-	•	Tap fires single shot.
-	•	Holding produces sustained thrust.
-	•	Swiping rotates smoothly without jitter.
-	•	Interaction correctly overrides shooting.
-	•	Touch + keyboard input coexist without conflict
-
-⸻
-
-Phase 6 — Warp Gates & Hub
-
-6.1 Warp Gate Spawn Rules
-  • Random position.
-  • Must be >1000 px from map center.
-  • Visible object only (inactive).
-
-6.2 Hub Location
-  • Fixed location near center.
-  • Docking zone.
-  • UI trigger when near hub.
-
-6.3 Hub UI
-  • Store
-  • Upgrade Shop
-  • Repair Shop
-
-Manual Test
-  • Gates spawn correctly at valid distance.
-  • Hub interaction opens UI.
-  • No crash on repeated entry.
+  - [x] Hub interaction opens UI
+  - [x] No crash on repeated entry
 
 ⸻
 
 Phase 7 — Economy
 
-7.1 Store
-  • Convert minerals → gold.
-  • Define exchange rates.
-  • Update HUD gold.
-
-7.2 Repair Shop
-  • Restore health.
-  • Cost scales with missing HP.
+- [x] 7.1 Store — convert minerals → gold; exchange rates; update HUD gold
+- [x] 7.2 Repair Shop — restore health; cost scales with missing HP
 
 Manual Test
-  • Selling updates gold correctly.
-  • No negative balances.
-  • Repair caps at max HP.
+  - [x] Selling updates gold correctly
+  - [x] No negative balances
+  - [x] Repair caps at max HP
 
 ⸻
 
 Phase 8 — Upgrade System (Foundation)
 
-Create upgrade framework:
-
-Upgrade Categories:
-  • Firepower (damage multiplier)
-  • Fire rate
-  • Bullet size
-  • Homing strength
-  • Fuel efficiency
-  • Cargo capacity
-  • Hull strength
-  • Shield strength
-  • Shield regeneration speed
-
-Implementation Requirements:
-  • Upgrades stack.
-  • Persistent across sessions (optional).
-  • Affect real stats immediately.
-  • Clear UI indicators for levels.
+- [x] Upgrade categories: Firepower, Fire rate, Bullet size, Homing strength,
+      Energy efficiency, Cargo capacity, Hull strength, Shield strength, Shield regen
+- [x] Upgrades stack and affect real stats immediately
+- [x] fuelEfficiencyMultiplier on Ship (–10% per level, min 0.10)
+- [x] Energy Depot in Repair tab (recharge costs 0.1g/unit)
+- [x] Clear UI level indicators
 
 Manual Test
-  • Each upgrade visibly changes gameplay.
-  • Damage scaling verified numerically.
-  • Shield regen timing measurable.
+  - [x] Each upgrade visibly changes gameplay
+  - [x] Damage scaling verified
+  - [x] Shield regen timing measurable
 
 ⸻
 
-Phase 9 — Enemy Behavior Improvement
+Phase 9 — Enemy Behavior
 
-9.4 Drive-By Combat Behavior
-
-Replace current “move directly toward player” logic.
-
-New Behavior:
-	•	Enemy maintains offset radius from player.
-	•	Approaches at angled vector.
-	•	Performs lateral pass (“drive-by”).
-	•	Fires during pass window.
-	•	After pass:
-	•	Create separation distance.
-	•	Re-approach from new vector.
-
-Constraints:
-	•	No collision suicides.
-	•	Maintain deterministic timing.
-	•	No randomness in fire cadence.
-	•	Avoid tight orbiting behavior.
+- [x] 9.1 Drive-By Combat — enemy maintains offset radius; lateral pass; fires during pass window; separates and re-approaches
+- [x] 9.2 No collision suicides; deterministic timing; no tight orbiting
+- [x] 9.3 EnemySpawner — spawn groups with circular patrol paths; enemies drop rare minerals on death
+- [x] 9.4 Bullet.color + WeaponSystem.fire(bulletColor:) param
+- [x] 9.5 Enemy Vision Persistence on Mini Map — visible once seen; remains 60s after last seen; timer resets on re-encounter
 
 Manual Test
-	•	Enemies do not ram player.
-	•	Clear attack windows.
-	•	Movement readable and tactical.
-	•	No infinite circling edge cases.
-
-Phase 9 — Mini Map Intelligence Extension
-
-9.5 Enemy Vision Persistence on Mini Map
-
-Add temporal visibility system.
-
-Rules:
-	•	Enemy becomes visible on mini map once seen.
-	•	Remains visible for 60 seconds since last visible frame.
-	•	Timer resets whenever enemy re-enters view.
-	•	After 60 seconds unseen → removed from mini map only (not world).
-
-Implementation:
-	•	Add lastSeenTimestamp to EnemyShip.
-	•	Track visibility via camera frustum check.
-	•	Mini map renders enemies if:
-	•	currently visible OR
-	•	now - lastSeenTimestamp <= 60s.
-
-Manual Test
-	•	Enemy appears when first encountered.
-	•	Leaving area keeps enemy on mini map.
-	•	After 60 seconds unseen → disappears from mini map.
-	•	Timer resets properly on re-encounter.
+  - [x] Enemies do not ram player
+  - [x] Clear attack windows; movement readable
+  - [x] Enemy appears on minimap when encountered; disappears after 60s unseen
 
 ⸻
 
-Phase 10 — Warp Gate Loop
+Phase 10 — Kill-Quota Wave Loop
 
-10.1 Clear Condition
-  • When all enemies defeated:
-  • Spawn new warp gate.
-  • Spawn new enemy group near gate.
-
-10.2 Gate Activation Logic
-  • Gates remain in world.
-  • Only one active spawn cycle at a time.
-
-Gameplay Loop:
-Clear enemies → New gate appears → Clear gate enemies → Repeat.
+- [x] 10.1 Clear enemies → new wave spawns near new position
+- [x] 10.2 Only one active spawn cycle at a time; old positions remain
+- [x] 10.3 Warp-new-system callback wired into hub panel
 
 Manual Test
-  • Loop does not soft-lock.
-  • Enemy count finite.
-  • Old gates remain persistent.
+  - [x] Loop does not soft-lock
+  - [x] Enemy count finite
+  - [x] Wave respawn works correctly
 
 ⸻
 
-Phase 11 — Dungeon Framework
+Phase 11 — Resource System Rework
 
-11.1 Dungeon Scene System
-  • Separate scene type.
-  • Layer-based structure.
-  • Entry from selected warp gate.
+- [ ] 11.1 Rename ore types
+  - [ ] Change MineralType enum: common → energyOre, rare → materialOre
+  - [ ] Update all switch statements and comparisons (mineral_drop.dart, store.dart, hub_panel.dart, world_map.dart)
+  - [ ] Rename mineral_type.dart enum and file references to ResourceType (or update in place)
 
-11.2 Radial Map Generation
-  • Circular map.
-  • Concentric zones.
-  • Entry checkpoint per layer.
+- [ ] 11.2 Asteroid ore ratio and visuals
+  - [ ] WorldMap.generateAsteroids(): 80% materialOre, 20% energyOre
+  - [ ] Asteroid gets isEnergyOre bool flag from mineralType at construction
+  - [ ] Energy ore asteroids render with pulsing green glow (semi-transparent circle at radius+4, alpha from _totalTime)
+  - [ ] Material ore asteroids unchanged
+
+- [ ] 11.3 Replace Ship fuel with Ship energy
+  - [ ] Rename Ship.fuel → energy, maxFuel → maxEnergy, fuelEfficiencyMultiplier → energyEfficiencyMultiplier
+  - [ ] Rename consumeFuel() → consumeEnergy()
+  - [ ] Update HUD fuel bar → energy bar (cyan color, label "Energy")
+  - [ ] Update HubPanel Repair tab fuel section → energy recharge section
+  - [ ] Update repair_shop.dart: calculateRefuelCost → calculateReenergizeCost
+
+- [ ] 11.4 Add Mothership resource pools to economy
+  - [ ] PlayerEconomy: add int energyResource, int materialResource
+  - [ ] Add addEnergy/spendEnergy/addMaterial/spendMaterial methods
+  - [ ] Keep gold temporarily (removed in Phase 13)
 
 Manual Test
-  • Can enter and exit dungeon safely.
-  • No data corruption on transition.
+  - [ ] ~20% of asteroids spawn with visible green glow; glow pulses
+  - [ ] Ship energy bar in HUD replaces fuel bar; depletes on thrust
+  - [ ] PlayerEconomy compiles with new fields; no negatives possible
 
 ⸻
 
-Phase 12–15 — Dungeon Layers
+Phase 12 — Mothership Entity (Player Base)
 
-Layer 1 – Collector Array
-  • Open layout.
-  • Patrol drones on fixed paths.
-  • Basic hazards.
+- [ ] 12.1 Create lib/entities/mothership.dart
+  - [ ] Mothership extends LivingEntity
+  - [ ] health=1000, maxHealth=1000, radius=60; static (velocity always zero)
+  - [ ] render(): large dark-blue hexagon with bright blue outline; "MOTHERSHIP" label; health bar below
 
-Layer 2 – Industrial Ring
-  • Corridors.
-  • Moving hazards.
-  • Tighter patrol overlaps.
+- [ ] 12.2 Replace hub point with Mothership in OverworldScene
+  - [ ] Remove _hubPos = Vector2(300, 0); add late Mothership _mothership
+  - [ ] Initialize _mothership in onEnter() at Vector2(300, 0)
+  - [ ] Replace all _hubPos references with _mothership.position
+  - [ ] Add _mothership.render(renderer) in world-space render block
+  - [ ] Add _mothership.isDead() check → _handleGameOver() stub
 
-Layer 3 – Containment Lattice
-  • Radiation zones.
-  • Gravity distortion (mild ship pull effects).
-  • Coordinated drone formations.
+- [ ] 12.3 Dock interaction and panel label
+  - [ ] Pass mothership position to HubPanel.update()
+  - [ ] HubPanel header text: "MOTHERSHIP" (was "STARFALL HUB")
 
-Layer 4 – Core
-  • AI chamber.
-  • Elite constructs.
-  • Boss encounter.
-
-Each layer:
-  • Entry checkpoint.
-  • Extraction cost scaling.
-  • Loot tier scaling.
-
-Manual Test per Layer
-  • Patrol paths consistent.
-  • Attack timing predictable.
-  • Extraction returns correctly to hub.
-  • Difficulty escalates logically.
-
-⸻
-
-Phase 16 — Four Unique Dungeons
-
-Design 4 Dyson spheres with variations:
-  • Sphere A: Balanced.
-  • Sphere B: Dense hazards.
-  • Sphere C: Heavy enemy density.
-  • Sphere D: Environmental distortion emphasis.
-
-Layer parameters adjustable:
-  • Enemy count.
-  • Hazard density.
-  • Extraction cost multiplier.
-  • Loot multiplier.
+- [ ] 12.4 Mothership on minimap
+  - [ ] Update minimap to render player Mothership as a distinct marker
 
 Manual Test
-  • Parameter tuning works without code changes.
-  • Each dungeon feels distinct.
+  - [ ] Mothership renders as hexagonal structure; health bar visible
+  - [ ] Docking prompt triggers correctly at 250 units; docking at 100 units
+  - [ ] Minimap shows Mothership marker
 
 ⸻
 
-Phase 17 — Full Gameplay Loop Test
+Phase 13 — Manufacturing Panel & Resource Economy
 
-Validate:
-  1. Mine planets.
-  2. Sell minerals.
-  3. Buy upgrades.
-  4. Clear enemy cycles.
-  5. Enter dungeon.
-  6. Descend layers.
-  7. Extract.
-  8. Repeat progression.
+- [ ] 13.1 Remove gold economy; switch all costs to Energy + Material
+  - [ ] Remove gold from PlayerEconomy (or zero and stop displaying)
+  - [ ] Upgrade costs: add int energyCost, int materialCost to Upgrade class
+  - [ ] UpgradeShop.purchaseUpgrade() deducts energyCost + materialCost
+  - [ ] RepairShop.repairShip() costs Material; reEnergizeShip() costs base Energy
 
-Check For:
-  • Economic balance.
-  • Upgrade scaling.
-  • Difficulty ramp.
-  • Performance stability.
-  • Memory leaks.
-  • Edge-case crashes (fuel 0, max cargo, etc.).
+- [ ] 13.2 Manufacturing tab in HubPanel
+  - [ ] Replace HubTab.store with HubTab.manufacturing
+  - [ ] _renderManufacturing(): show ore counts in cargo; show conversion rates (1 ore → 5 resource)
+  - [ ] "PROCESS ALL" button: loops cargo, calls economy.addEnergy/addMaterial, clears cargo
+
+- [ ] 13.3 HUD resource display
+  - [ ] Remove gold display from HUD
+  - [ ] Add "E: N" (cyan) and "M: N" (orange) resource counters
+
+- [ ] 13.4 Upgrades tab cost display
+  - [ ] Show "Ne / Nm" resource cost per upgrade row
+  - [ ] Affordability check uses both energyResource and materialResource
+
+Manual Test
+  - [ ] Collecting energy ore then docking shows count in Manufacturing tab
+  - [ ] "PROCESS ALL" converts to correct resource amounts
+  - [ ] HUD shows Energy and Material resource values
+  - [ ] Upgrade costs display as pairs; purchase deducts correctly
+  - [ ] Zero-resource states handled without negatives
+
+⸻
+
+Phase 14 — Ship Destruction and Respawn
+
+- [ ] 14.1 Player death detection in OverworldScene.update()
+  - [ ] if (_ship.isDead()) → _handlePlayerDeath()
+  - [ ] _handlePlayerDeath(): set ship inactive; show "SHIP DESTROYED" notification; start _respawnTimer = 3.0
+  - [ ] During countdown: input disabled; "Respawning in Xs..." text shown
+
+- [ ] 14.2 Respawn cost and logic
+  - [ ] Respawn material cost: 50 (constant; upgradeable via Phase 15)
+  - [ ] After countdown: if materialResource >= respawnCost → spend → spawn new Ship at mothership.position + offset
+  - [ ] If insufficient material: show "Insufficient Material — waiting..." until available
+
+- [ ] 14.3 Game-over condition — Mothership destroyed
+  - [ ] if (_mothership.isDead()): show "MOTHERSHIP DESTROYED — GAME OVER" overlay
+  - [ ] "RESTART" button → SceneType.start
+
+- [ ] 14.4 Mothership takes enemy damage
+  - [ ] _checkEnemyBulletMothershipCollisions()
+  - [ ] _checkEnemyRamMothershipCollisions(double dt)
+
+Manual Test
+  - [ ] Ship destroyed: 3s countdown shown, then new ship spawns consuming 50 Material
+  - [ ] Zero Material: warning shown; waits until resources available
+  - [ ] Mothership health depletes from stray enemy fire
+  - [ ] Mothership destroyed → Game Over screen; Restart resets cleanly
+
+⸻
+
+Phase 15 — Base Upgrade System
+
+- [ ] 15.1 New upgrade categories in UpgradeType
+  - [ ] respawnCost: each level −10 Material from respawn cost (min 10)
+  - [ ] shipMaxEnergy: each level +200 to Ship.maxEnergy
+  - [ ] collectorDroneSlots: each level +1 drone slot (max 4)
+  - [ ] turretSlots: each level +1 turret slot (max 4)
+
+- [ ] 15.2 Base Upgrades tab in HubPanel
+  - [ ] Add HubTab.baseUpgrades
+  - [ ] _renderBaseUpgrades(): list base-level upgrades with resource costs
+  - [ ] Rename existing Upgrades tab to "SHIP UPGRADES"
+
+- [ ] 15.3 Apply base upgrade effects
+  - [ ] respawnCost: OverworldScene reads level to compute actual cost
+  - [ ] shipMaxEnergy: Upgrade.apply() adds to ship.maxEnergy on purchase
+  - [ ] collectorDroneSlots / turretSlots: store level; gate BUILD buttons in Phase 17
+
+Manual Test
+  - [ ] BASE tab visible in panel
+  - [ ] Purchasing respawnCost upgrade reduces Material cost on next death
+  - [ ] Purchasing shipMaxEnergy upgrade increases energy bar length
+  - [ ] Drone/turret slot upgrades purchase cleanly (no effect until Phase 17)
+
+⸻
+
+Phase 16 — Enemy Mothership
+
+- [ ] 16.1 Create lib/entities/enemy_mothership.dart
+  - [ ] EnemyMothership extends LivingEntity
+  - [ ] health=800, maxHealth=800, radius=60; static position
+  - [ ] Internal _energyResource=200, _materialResource=200
+  - [ ] render(): dark-red hexagon with red outline; "ENEMY MOTHERSHIP" label; health bar
+
+- [ ] 16.2 Spawn trigger
+  - [ ] OverworldScene: track _gameTimer; at 180s → instantiate EnemyMothership at Vector2(-3000, 0)
+  - [ ] Spawn 2 CollectorShip(isEnemy: true) near enemy Mothership
+
+- [ ] 16.3 Create lib/entities/collector_ship.dart
+  - [ ] CollectorShip extends LivingEntity; bool isEnemy; health=40
+  - [ ] Behavior: fly to nearest ore asteroid → hover 1.5s (mining) → fly back to owning Mothership → deposit ore
+  - [ ] render(): small diamond; blue tint if player-owned, red tint if enemy-owned
+  - [ ] On death: drops 1–3 material ore at location
+
+- [ ] 16.4 Enemy Mothership builds replacement combat ships
+  - [ ] When an enemy combat ship is killed: if _materialResource >= 50 → deduct → spawn replacement after 5s
+
+- [ ] 16.5 Enemy combat ships can target player Mothership
+  - [ ] Add Vector2? targetOverride to EnemyShip.updateAI()
+  - [ ] When enemy ship within 600 units of player Mothership and player ship is far: switch to attacking Mothership
+
+- [ ] 16.6 Victory condition
+  - [ ] if (_enemyMothership.isDead()): show "ENEMY MOTHERSHIP DESTROYED — VICTORY!" overlay
+  - [ ] "PLAY AGAIN" → SceneType.start
+
+Manual Test
+  - [ ] Game runs 3 minutes; Enemy Mothership appears at far edge
+  - [ ] Enemy collectors mine asteroids, return to enemy Mothership
+  - [ ] Enemy combat ships switch target to player Mothership when player is distant
+  - [ ] Enemy rebuilds a combat ship after one is destroyed (if resources available)
+  - [ ] Destroying Enemy Mothership shows victory screen
+  - [ ] Player Mothership destroyed shows game over screen
+
+⸻
+
+Phase 17 — Player Automation (Drones and Turrets)
+
+- [ ] 17.1 Player collector drones
+  - [ ] Reuse CollectorShip with isEnemy=false
+  - [ ] OverworldScene tracks _playerCollectors list
+  - [ ] "BUILD COLLECTOR DRONE" button in Manufacturing tab (visible if collectorDroneSlots > 0)
+  - [ ] Cost: 30 Energy + 80 Material; cap at upgrade level
+  - [ ] Player drones mine energy ore asteroids; deposit into economy.energyResource
+
+- [ ] 17.2 Defense turrets
+  - [ ] Create lib/entities/turret.dart: Turret extends Entity
+  - [ ] Anchored to Mothership at N/E/S/W positions (radius+20)
+  - [ ] Finds nearest enemy within range=500; rotates toward it; fires once per 2.0s
+  - [ ] render(): small filled square with aim-direction line
+  - [ ] "BUILD TURRET" button in Base Upgrades tab (visible if turretSlots > 0)
+  - [ ] Cost: 20 Energy + 120 Material; max 4 turrets
+
+- [ ] 17.3 Drone/turret slot gating
+  - [ ] BUILD buttons disabled when slot cap reached
+  - [ ] Slots from Phase 15 upgrades now actually gate the buttons
+
+Manual Test
+  - [ ] After buying drone slot upgrade, BUILD button appears; drone spawns and mines independently
+  - [ ] Drone returns to Mothership; Energy resource pool increases
+  - [ ] After buying turret slot, BUILD button appears; turret renders at Mothership
+  - [ ] Turret rotates toward nearest enemy; fires and deals damage
+  - [ ] Multiple turrets aim independently
+  - [ ] Drone and turret counts capped at slot limits
+
+⸻
+
+Phase 18 — Enemy Progression & Balance Pass
+
+- [ ] 18.1 Enemy upgrade timer in EnemyMothership.update()
+  - [ ] t=270s: enemy combat ships gain +20 HP
+  - [ ] t=360s: enemy adds 3rd collector ship
+  - [ ] t=450s: enemy combat ships gain +10% fire rate
+  - [ ] t=540s: enemy adds 2 more combat ships
+
+- [ ] 18.2 Enemy resource-to-build loop
+  - [ ] When _materialResource >= 150 and below combat ship cap → spend 50 → build 1 ship
+  - [ ] Destroying enemy collectors slows enemy production (strategic pressure)
+
+- [ ] 18.3 Collector ships can be targeted and destroyed
+  - [ ] CollectorShip health=40; flees when shot (no combat AI)
+  - [ ] Enemy Mothership replaces destroyed collectors: 20 Material, 10s delay
+
+- [ ] 18.4 Full balance pass
+  - [ ] Tune: asteroid count, ore ratios, conversion rates, upgrade costs, respawn cost, enemy HP scaling, collector mining rate, turret fire rate
+  - [ ] Verify: neither side wins trivially in <3min; player mining window meaningful; enemy pressure escalates gradually
+
+- [ ] 18.5 HUD and minimap additions
+  - [ ] Enemy Mothership: always-visible large red square on minimap
+  - [ ] Player Mothership health bar added to HUD (bottom, orange-red)
+  - [ ] Elapsed game time display (top-center, small) so player anticipates enemy escalation
+
+Manual Test
+  - [ ] Full session: 0–3min mining; 3min enemy arrives; 4.5min enemy upgrade; etc.
+  - [ ] Game winnable but requires active play; passive drone-only strategy fails
+  - [ ] All HUD additions render without overlap
+  - [ ] No crashes over a 10-minute session
+  - [ ] Memory stable (no inactive entity accumulation)
 
 ⸻
 
 Critical Attention Areas
-  1. Collision Accuracy – prevent tunneling.
-  2. Upgrade Scaling – avoid exponential breakage.
-  3. Extraction Logic – avoid duplication exploits.
-  4. Spawn Logic – no overlapping entities.
-  5. Heat & shield timing precision.
-  6. Deterministic AI behavior consistency.
+
+  1. Resource Balance — ensure mining rate, conversion, and upgrade costs create meaningful decisions without trivial snowball.
+  2. Mothership Targeting — enemy ships switching to attack Mothership must feel intentional, not random.
+  3. Respawn Gate — zero-material respawn block must not soft-lock; automation from Phase 17 must be able to unblock it.
+  4. Collector Pathfinding — simple seek behavior must not cause collectors to cluster on one asteroid or get stuck at world edge.
+  5. Collision Accuracy — Mothership is large (radius=60); bullet and ram checks must not miss at high ship speeds.
+  6. Enemy Escalation Timing — upgrades at 270/360/450/540s must be tunable without recompile (constants in EnemyMothership).
+  7. Entity Lifecycle — destroyed ships, spent drones, and replaced collectors must be removed from lists to prevent memory growth.
 
 ⸻
 
 Completion Definition
 
 Game is considered playable when:
-  • Full open-world loop functions.
-  • All 4 dungeons fully implemented.
-  • All 4 layers per dungeon implemented.
-  • All upgrades functional.
-  • No soft locks.
-  • Balance pass complete.
-
-⸻
-
-This roadmap ensures:
-  • Every mechanic is tested in isolation.
-  • Core loop validated before dungeon complexity.
-  • Systems layered without destabilizing prior work.
+  • Full simulation loop functions: mine → process → upgrade → defend.
+  • Enemy Mothership spawns, builds a fleet, and mounts an attack on the player Mothership.
+  • Both win condition (enemy destroyed) and lose condition (player Mothership destroyed) trigger correctly.
+  • Player automation (drones + turrets) noticeably changes the mid-game resource curve.
+  • No soft locks (zero-resource respawn handled; enemy ship rebuild handled).
+  • Balance pass complete: games last 8–15 minutes with active play.
 
 ⸻
 
@@ -506,5 +441,5 @@ Implementation Notes (Dart/Flutter specifics)
   • UUID → String (no external package needed for skeleton).
   • Key enum → GameKey enum (avoids conflict with Flutter's Key type).
   • Renderer wraps Flutter's dart:ui Canvas; passed into render() calls.
-  • Game loop will use Flutter's Ticker (SchedulerBinding) in Phase 0.1.
-  • SceneType enum added to scene.dart to support Game.changeScene().
+  • Game loop uses Flutter's Ticker (SchedulerBinding).
+  • SceneType enum in scene.dart: { start, overworld }.

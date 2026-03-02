@@ -55,11 +55,14 @@ class EnemyShip extends LivingEntity {
   }
 
   /// Updates AI and returns a [Bullet] if the enemy fires this frame.
-  Bullet? updateAI(Ship player, double deltaTime) {
+  ///
+  /// [canSeePlayer] — set to false in walled environments when line-of-sight
+  /// is blocked; the enemy will revert to patrol instead of engaging.
+  Bullet? updateAI(Ship player, double deltaTime, {bool canSeePlayer = true}) {
     Bullet? shot;
     final dist = Vector2.distance(position, player.position);
 
-    if (dist < detectionRadius) {
+    if (canSeePlayer && dist < detectionRadius) {
       if (_aiState == _AIState.patrol) _aiState = _AIState.approach;
       shot = _runCombat(player, deltaTime);
     } else {

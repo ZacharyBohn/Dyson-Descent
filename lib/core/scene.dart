@@ -1,7 +1,7 @@
 import 'input_manager.dart';
 import 'renderer.dart';
 
-enum SceneType { start, overworld, dungeon, hub }
+enum SceneType { start, overworld, hub }
 
 abstract class Scene {
   final void Function(SceneType) onChangeScene;

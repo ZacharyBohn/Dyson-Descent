@@ -1,7 +1,6 @@
 import 'input_manager.dart';
 import 'renderer.dart';
 import 'scene.dart';
-import '../scenes/dungeon_scene.dart';
 import '../scenes/hub_scene.dart';
 import '../scenes/overworld_scene.dart';
 import '../scenes/start_scene.dart';
@@ -42,7 +41,6 @@ class Game {
   Scene _createScene(SceneType type) => switch (type) {
     SceneType.start     => StartScene(onChangeScene: changeScene,     inputManager: inputManager),
     SceneType.overworld => OverworldScene(onChangeScene: changeScene, inputManager: inputManager),
-    SceneType.dungeon   => DungeonScene(onChangeScene: changeScene,   inputManager: inputManager),
     SceneType.hub       => HubScene(onChangeScene: changeScene,       inputManager: inputManager),
   };
 }
